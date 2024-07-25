@@ -75,8 +75,6 @@ source.setup = function()
       isIncomplete = true,
     }
   end
-
-  cmp.register_source('cmp-org-roam', source.new())
 end
 
 return source
