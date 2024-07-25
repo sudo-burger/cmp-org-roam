@@ -1,13 +1,13 @@
 -- Custom nvim-cmp source for org-roam nodes.
 
-local M = {}
+local source = {}
 
 local registered = false
 
-M.setup = function()
-  -- if registered then
-  --   return
-  -- end
+source.setup = function()
+  if registered then
+    return
+  end
   registered = true
 
   local has_cmp, cmp = pcall(require, 'cmp')
@@ -19,14 +19,13 @@ M.setup = function()
   if not has_org_roam then
     return
   end
+  --
   -- Ingest the org-roam database.
   local config = org_roam.database:path()
   if vim.fn.filereadable(config) == 0 then
     return
   end
   local db = vim.fn.json_decode(vim.fn.readfile(config))
-
-  local source = {}
 
   function source.new()
     return setmetatable({}, { __index = source })
@@ -39,9 +38,6 @@ M.setup = function()
   function source:complete(request, callback)
     local input =
       string.sub(request.context.cursor_before_line, request.offset - 1)
-    local prefix =
-      string.sub(request.context.cursor_before_line, 1, request.offset - 1)
-
     -- Merge the node names and their aliases.
     local raw = vim.tbl_extend('force', db.indexes.alias, db.indexes.title)
     local items = {}
@@ -50,7 +46,7 @@ M.setup = function()
       -- "<node name>": {
       --   "<node_id>": true
       -- },
-      -- FIXIT: This is a stupid hack to get the node_id.
+      -- FIXIT: There must be better ways to get the node id.
       local node_id = 'deadbeef'
       for k, _ in pairs(v) do
         node_id = k
@@ -83,4 +79,4 @@ M.setup = function()
   cmp.register_source('cmp-org-roam', source.new())
 end
 
-return M
+return source
