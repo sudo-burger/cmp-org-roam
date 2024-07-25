@@ -1,10 +1,10 @@
 -- Custom nvim-cmp source for org-roam nodes.
 
-local nodes = {}
+local M = {}
 
 local registered = false
 
-nodes.setup = function()
+M.setup = function()
   -- if registered then
   --   return
   -- end
@@ -28,78 +28,59 @@ nodes.setup = function()
 
   local source = {}
 
-  source.new = function()
+  function source.new()
     return setmetatable({}, { __index = source })
   end
 
-  source.get_trigger_characters = function()
-    return { '@' }
+  function source:get_keyword_pattern()
+    return [[\K\+]]
   end
 
-  source.get_keyword_pattern = function()
-    -- Add dot to existing keyword characters (\k).
-    return [[\%(\k\|\.\)\+]]
-  end
-
-  source.complete = function(self, request, callback)
+  function source:complete(request, callback)
     local input =
       string.sub(request.context.cursor_before_line, request.offset - 1)
     local prefix =
       string.sub(request.context.cursor_before_line, 1, request.offset - 1)
 
-    if
-      vim.startswith(input, '@')
-      and (prefix == '@' or vim.endswith(prefix, ' @'))
-    then
-      local raw = vim.tbl_extend('force', db.indexes.alias, db.indexes.title)
-      local items = {}
-      for title, v in pairs(raw) do
-        local node_id = 'deadbeef'
-        for k, _ in pairs(v) do
-          node_id = k
-          break
-        end
-        table.insert(items, {
-          filterText = title,
-          label = title,
-          textEdit = {
-            newText = '[[' .. node_id .. '][' .. title .. ']]',
-            range = {
-              start = {
-                line = request.context.cursor.row - 1,
-                character = request.context.cursor.col - 1 - #input,
-              },
-              ['end'] = {
-                line = request.context.cursor.row - 1,
-                character = request.context.cursor.col - 1,
-              },
+    -- Merge the node names and their aliases.
+    local raw = vim.tbl_extend('force', db.indexes.alias, db.indexes.title)
+    local items = {}
+    for title, v in pairs(raw) do
+      -- The db structure has:
+      -- "<node name>": {
+      --   "<node_id>": true
+      -- },
+      -- FIXIT: This is a stupid hack to get the node_id.
+      local node_id = 'deadbeef'
+      for k, _ in pairs(v) do
+        node_id = k
+        break
+      end
+      table.insert(items, {
+        filterText = title,
+        label = title,
+        textEdit = {
+          newText = '[[id:' .. node_id .. '][' .. title .. ']]',
+          range = {
+            start = {
+              line = request.context.cursor.row - 1,
+              character = request.context.cursor.col - 1 - #input,
+            },
+            ['end'] = {
+              line = request.context.cursor.row - 1,
+              character = request.context.cursor.col - 1,
             },
           },
-        })
-      end
-      callback {
-        items = items,
-        isIncomplete = true,
-      }
-    else
-      callback { isIncomplete = true }
+        },
+      })
     end
+    callback {
+      items = items,
+      isIncomplete = true,
+    }
   end
 
-  cmp.register_source('nodes', source.new())
-
-  cmp.setup.filetype('org', {
-    sources = cmp.config.sources {
-      -- { name = 'luasnip' },
-      -- { name = 'buffer' },
-      -- { name = 'calc' },
-      -- { name = 'emoji' },
-      -- { name = 'path' },
-
-      -- My custom sources.
-      { name = 'nodes' },
-    },
-  })
+  cmp.register_source('cmp-org-roam', source.new())
 end
 
-return nodes
+return M
