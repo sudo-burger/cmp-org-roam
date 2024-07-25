@@ -11,13 +11,16 @@ nodes.setup = function()
   registered = true
 
   local has_cmp, cmp = pcall(require, 'cmp')
-
   if not has_cmp then
     return
   end
 
+  local has_org_roam, org_roam = pcall(require, 'org-roam')
+  if not has_org_roam then
+    return
+  end
   -- Ingest the org-roam database.
-  local config = vim.fn.expand '~/.local/share/nvim/org-roam.nvim/db'
+  local config = org_roam.database:path()
   if vim.fn.filereadable(config) == 0 then
     return
   end
