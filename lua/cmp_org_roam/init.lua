@@ -32,36 +32,36 @@ function source:complete(request, callback)
   local input =
     string.sub(request.context.cursor_before_line, request.offset - 1)
   -- Merge the node names and their aliases.
-  local raw = vim.tbl_extend('force', db.indexes.alias, db.indexes.title)
+  -- The node structure is:
+  -- "<node id>": {
+  --   "title": "Something",
+  --   "aliases": ["foo", "bar"],
+  --   ...
+  -- },
+  -- In jq, the query would be '.nodes[]|.aliases[],.title|select(. != [])
   local items = {}
-  for title, v in pairs(raw) do
-    -- The db structure has:
-    -- "<node name>": {
-    --   "<node_id>": true
-    -- },
-    -- FIXIT: There must be better ways to get the node id.
-    local node_id = 'deadbeef'
-    for k, _ in pairs(v) do
-      node_id = k
-      break
-    end
-    table.insert(items, {
-      filterText = title,
-      label = title,
-      textEdit = {
-        newText = '[[id:' .. node_id .. '][' .. title .. ']]',
-        range = {
-          start = {
-            line = request.context.cursor.row - 1,
-            character = request.context.cursor.col - 1 - #input,
-          },
-          ['end'] = {
-            line = request.context.cursor.row - 1,
-            character = request.context.cursor.col - 1,
+  for node_id, node in pairs(db.nodes) do
+    local title_and_aliases =
+      vim.tbl_extend('force', { node.title }, node.aliases)
+    for _, v in pairs(title_and_aliases) do
+      table.insert(items, {
+        filterText = v,
+        label = v,
+        textEdit = {
+          newText = '[[id:' .. node_id .. '][' .. v .. ']]',
+          range = {
+            start = {
+              line = request.context.cursor.row - 1,
+              character = request.context.cursor.col - 1 - #input,
+            },
+            ['end'] = {
+              line = request.context.cursor.row - 1,
+              character = request.context.cursor.col - 1,
+            },
           },
         },
-      },
-    })
+      })
+    end
   end
   callback {
     items = items,
