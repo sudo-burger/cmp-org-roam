@@ -41,8 +41,12 @@ function source:complete(request, callback)
   -- In jq, the query would be '.nodes[]|.aliases[],.title|select(. != [])
   local items = {}
   for node_id, node in pairs(db.nodes) do
-    local title_and_aliases =
-      vim.tbl_extend('force', { node.title }, node.aliases)
+    local title_and_aliases = {}
+    table.insert(title_and_aliases, node.title)
+    for _, v in pairs(node.aliases) do
+      table.insert(title_and_aliases, v)
+    end
+
     for _, v in pairs(title_and_aliases) do
       table.insert(items, {
         filterText = v,
