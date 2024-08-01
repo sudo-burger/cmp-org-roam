@@ -9,13 +9,9 @@ source.new = function()
     return
   end
 
-  local has_org_roam, org_roam = pcall(require, 'org-roam')
+  local has_org_roam, _ = pcall(require, 'org-roam')
   if not has_org_roam then
-    return
-  end
-
-  instance.org_roam_db = org_roam.database:path()
-  if vim.fn.filereadable(instance.org_roam_db) == 0 then
+    error 'org-roam not found.'
     return
   end
   return instance
@@ -26,9 +22,6 @@ source.get_keyword_pattern = function()
 end
 
 function source:complete(request, callback)
-  -- Ingest the org-roam database.
-  -- FIXIT: sync with db updates (e.g. new nodes).
-  local db = vim.fn.json_decode(vim.fn.readfile(self.org_roam_db))
   local input =
     string.sub(request.context.cursor_before_line, request.offset - 1)
   -- Merge the node names and their aliases.
@@ -40,36 +33,42 @@ function source:complete(request, callback)
   -- },
   -- In jq, the query would be '.nodes[]|.aliases[],.title|select(. != [])
   local items = {}
-  for node_id, node in pairs(db.nodes) do
-    local title_and_aliases = {}
-    table.insert(title_and_aliases, node.title)
-    for _, v in pairs(node.aliases) do
-      table.insert(title_and_aliases, v)
-    end
+  local roam = require 'org-roam'
+  local files = roam.database:files_sync { force = false }
+  for _, file in pairs(files.files) do
+    local node_id = file:get_property 'id'
+    if node_id then
+      local node_title = file:get_title() or node_id
+      local title_and_aliases = {}
+      table.insert(title_and_aliases, node_title)
+      local node_aliases = file:get_property 'roam_aliases' or ''
+      for str in string.gmatch(node_aliases, '([^%s]+)') do
+        table.insert(title_and_aliases, str)
+      end
 
-    for _, v in pairs(title_and_aliases) do
-      table.insert(items, {
-        filterText = v,
-        label = v,
-        textEdit = {
-          newText = '[[id:' .. node_id .. '][' .. v .. ']]',
-          range = {
-            start = {
-              line = request.context.cursor.row - 1,
-              character = request.context.cursor.col - 1 - #input,
-            },
-            ['end'] = {
-              line = request.context.cursor.row - 1,
-              character = request.context.cursor.col - 1,
+      for _, v in ipairs(title_and_aliases) do
+        table.insert(items, {
+          filterText = v,
+          label = v,
+          textEdit = {
+            newText = '[[id:' .. node_id .. '][' .. v .. ']]',
+            range = {
+              start = {
+                line = request.context.cursor.row - 1,
+                character = request.context.cursor.col - 1 - #input,
+              },
+              ['end'] = {
+                line = request.context.cursor.row - 1,
+                character = request.context.cursor.col - 1,
+              },
             },
           },
-        },
-      })
+        })
+      end
     end
   end
   callback {
     items = items,
-    isIncomplete = true,
   }
 end
 
