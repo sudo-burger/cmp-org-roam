@@ -34,10 +34,10 @@ function source:complete(request, callback)
   -- In jq, the query would be '.nodes[]|.aliases[],.title|select(. != [])
   local items = {}
   local roam = require 'org-roam'
-  local files = roam.database:files_sync { force = false }
+  local files = roam.database:files_sync()
   for _, file in pairs(files.files) do
     local node_id = file:get_property 'id'
-    if node_id then
+    if node_id and file.parser._valid ~= false then
       local node_title = file:get_title() or node_id
       local title_and_aliases = {}
       table.insert(title_and_aliases, node_title)
