@@ -22,37 +22,32 @@ source.get_keyword_pattern = function()
 end
 
 function source:complete(request, callback)
-  local input =
-    string.sub(request.context.cursor_before_line, request.offset - 1)
-  -- Merge the node names and their aliases.
-  -- The node structure is:
-  -- "<node id>": {
-  --   "title": "Something",
-  --   "aliases": ["foo", "bar"],
-  --   ...
-  -- },
-  -- In jq, the query would be '.nodes[]|.aliases[],.title|select(. != [])
-  local items = {}
-  local roam = require 'org-roam'
-  local working = true
-  roam.database:files():next(function(files)
+  require('org-roam').database:files({ force = false }):next(function(files)
+    local input =
+      string.sub(request.context.cursor_before_line, request.offset - 1)
+    local items = {}
     for _, file in pairs(files.files) do
       local node_id = file:get_property 'id'
+
+      -- Skip files that have no node_id or that are not valid org files.
       if node_id and file.parser._valid ~= false then
+        -- In theory a node could have no title. Use the node's ID as fallback.
         local node_title = file:get_title() or node_id
-        local title_and_aliases = {}
-        table.insert(title_and_aliases, node_title)
+        local title_and_aliases = { node_title }
+
+        -- Aliases are stored as space-separated strings.
+        -- Split here.
         local node_aliases = file:get_property 'roam_aliases' or ''
         for str in string.gmatch(node_aliases, '([^%s]+)') do
           table.insert(title_and_aliases, str)
         end
 
-        for _, v in ipairs(title_and_aliases) do
+        for _, node_name in ipairs(title_and_aliases) do
           table.insert(items, {
-            filterText = v,
-            label = v,
+            filterText = node_name,
+            label = node_name,
             textEdit = {
-              newText = '[[id:' .. node_id .. '][' .. v .. ']]',
+              newText = '[[id:' .. node_id .. '][' .. node_name .. ']]',
               range = {
                 start = {
                   line = request.context.cursor.row - 1,
@@ -68,12 +63,10 @@ function source:complete(request, callback)
         end
       end
     end
-    working = false
+    callback {
+      items = items,
+    }
   end)
-  callback {
-    items = items,
-    isIncomplete = working,
-  }
 end
 
 source.setup = function() end
