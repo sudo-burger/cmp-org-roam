@@ -18,7 +18,7 @@ source.new = function()
 end
 
 source.get_keyword_pattern = function()
-  return [[\K\+]]
+  return [[\w\+]]
 end
 
 function source:complete(request, callback)
