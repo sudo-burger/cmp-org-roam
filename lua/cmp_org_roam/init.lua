@@ -3,18 +3,7 @@
 local source = {}
 
 source.new = function()
-  local instance = setmetatable({}, { __index = source })
-  local has_cmp, _ = pcall(require, 'cmp')
-  if not has_cmp then
-    return
-  end
-
-  local has_org_roam, _ = pcall(require, 'org-roam')
-  if not has_org_roam then
-    error 'org-roam not found.'
-    return
-  end
-  return instance
+  return setmetatable({}, { __index = source })
 end
 
 source.get_keyword_pattern = function()
